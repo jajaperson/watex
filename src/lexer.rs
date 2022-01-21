@@ -1,10 +1,12 @@
 use std::{iter::Peekable, str::Chars};
 
+#[derive(Debug, PartialEq, Eq)]
 pub enum Brace {
     Left,
     Right,
 }
 
+#[derive(Debug, PartialEq, Eq)]
 pub enum Token {
     Command(String),
     Brace(Brace),
@@ -132,6 +134,58 @@ impl<'a> Iterator for Lexer<'a> {
             (0, chars_max)
         } else {
             (1, chars_max)
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::lexer::{Brace::*, Lexer, Token::*};
+
+    const EXAMPLE_LATEX: &str = r#"
+\newcommand{\u}[1]{2^#1}
+3^x &\geq\u{93\%} % I'm a comment.
+#"#; // Final # is illegal
+
+    #[test]
+    fn parse_example() {
+        let example_latex_tokenized = [
+            Whitespace("\n".into()),
+            Command("newcommand".into()),
+            Brace(Left),
+            Command("u".into()),
+            Brace(Right),
+            Char('['),
+            Char('1'),
+            Char(']'),
+            Brace(Left),
+            Char('2'),
+            Char('^'),
+            Arg(1),
+            Brace(Right),
+            Whitespace("\n".into()),
+            Char('3'),
+            Char('^'),
+            Char('x'),
+            Whitespace(" ".into()),
+            Ampersand,
+            Command("geq".into()),
+            Command("u".into()),
+            Brace(Left),
+            Char('9'),
+            Char('3'),
+            Command("%".into()),
+            Brace(Right),
+            Whitespace(" ".into()),
+            Comment(" I'm a comment.".into()),
+            Whitespace("\n".into()),
+            Illegal,
+        ];
+
+        let lexer = Lexer::new(EXAMPLE_LATEX);
+
+        for (a, b) in lexer.zip(example_latex_tokenized) {
+            assert_eq!(a, b);
         }
     }
 }

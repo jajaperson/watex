@@ -1,6 +1,4 @@
-mod lexer;
-
-pub use lexer::Lexer;
+pub mod lexer;
 
 #[cfg(test)]
 mod tests {
