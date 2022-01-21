@@ -14,7 +14,7 @@ pub enum Token {
     Comment(String),
     Char(char),
     Eof,
-    // Illegal,
+    Illegal,
 }
 
 /// Lexer (tokeniser) for latex maths mode code.
@@ -38,14 +38,19 @@ impl<'a> Lexer<'a> {
             '}' => Brace(Right),
             '&' => Ampersand,
             '\0' => Eof,
-            // ...
             '\\' => Command(
                 self.chars
                     .next()
                     .map_or("".into(), |nch| self.collect_command(nch, String::new())),
             ),
             '%' => Comment(self.build_comment(String::new())),
-            '#' => Arg(self.build_arg(String::new())),
+            '#' => self.chars.next().map_or(Illegal, |nch| {
+                if nch.is_ascii_digit() {
+                    Arg(self.collect_arg(nch, String::new()))
+                } else {
+                    Illegal
+                }
+            }),
             _ if ch.is_whitespace() => Whitespace(self.collect_whitespace(ch, String::new())),
             _ => Char(ch),
         })
@@ -53,7 +58,7 @@ impl<'a> Lexer<'a> {
 
     // Build states start from the first character
 
-    /// Build a comment, starting from the current char
+    /// Builds a comment string, starting from the current char.
     fn build_comment(&mut self, mut buffer: String) -> String {
         if self
             .chars
@@ -68,22 +73,9 @@ impl<'a> Lexer<'a> {
         }
     }
 
-    /// Build an argument, starting from the current char.
-    fn build_arg(&mut self, mut buffer: String) -> usize {
-        if self.chars.peek().map_or(false, |ch| ch.is_ascii_digit()) {
-            let ch = self.chars.next().expect("If None condition is false.");
-            buffer.push(ch);
-            self.build_arg(buffer)
-        } else {
-            buffer
-                .parse()
-                .expect("Only ascii digits should be collected in `buffer`")
-        }
-    }
-
     // Collect states must be provided with the first character
 
-    /// Collects a command, starting from the provided char and continuing by iterating over `self.chars`.
+    /// Collects a command string, starting from the provided char and continuing by iterating over `self.chars`.
     fn collect_command(&mut self, current: char, mut buffer: String) -> String {
         buffer.push(current);
         if self
@@ -98,7 +90,24 @@ impl<'a> Lexer<'a> {
         }
     }
 
-    /// Collects whitespace, starting from the provided char (assumed to be whitespace) and continuing by iterating over `self.chars`
+    /// Builds an argument integer, starting from the provided char (assumed to be an ascii digit) and continuing by iterating over `self.chars`.
+    ///
+    /// # Panics
+    ///
+    /// Panics if provided `current` is not a valid ascii digit.
+    fn collect_arg(&mut self, current: char, mut buffer: String) -> usize {
+        buffer.push(current);
+        if self.chars.peek().map_or(false, |ch| ch.is_ascii_digit()) {
+            let nch = self.chars.next().expect("If None condition is false.");
+            self.collect_arg(nch, buffer)
+        } else {
+            buffer
+                .parse()
+                .expect("`buffer` should only contain ascii digits.")
+        }
+    }
+
+    /// Collects whitespace string, starting from the provided char (assumed to be whitespace) and continuing by iterating over `self.chars`
     fn collect_whitespace(&mut self, current: char, mut buffer: String) -> String {
         buffer.push(current);
         if self.chars.peek().map_or(false, |ch| ch.is_whitespace()) {
