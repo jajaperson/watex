@@ -19,7 +19,7 @@ pub enum Token {
     Illegal,
 }
 
-/// Lexer (tokeniser) for latex maths mode code.
+/// Lexer (tokeniser) for latex maths mode code. TeX calls this the mouth.
 pub struct Lexer<'a> {
     chars: Peekable<Chars<'a>>,
 }

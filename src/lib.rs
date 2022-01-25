@@ -1,4 +1,10 @@
 pub mod lexer;
+pub mod macro_expander;
+
+pub enum Mode {
+    Text,
+    Math,
+}
 
 #[cfg(test)]
 mod tests {
