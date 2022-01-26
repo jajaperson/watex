@@ -62,16 +62,12 @@ impl<'a> Lexer<'a> {
 
     /// Builds a comment string, starting from the current char.
     fn build_comment(&mut self, mut buffer: String) -> String {
-        if self
-            .chars
-            .peek()
-            .map_or(true, |ch| *ch == '\n' || *ch == '\0')
-        {
-            buffer
-        } else {
-            let ch = self.chars.next().expect("If None condition is true.");
-            buffer.push(ch);
-            self.build_comment(buffer)
+        match self.chars.next_if(|ch| *ch != '\n' && *ch != '\0') {
+            Some(ch) => {
+                buffer.push(ch);
+                self.build_comment(buffer)
+            }
+            None => buffer,
         }
     }
 
@@ -80,15 +76,9 @@ impl<'a> Lexer<'a> {
     /// Collects a command string, starting from the provided char and continuing by iterating over `self.chars`.
     fn collect_command(&mut self, current: char, mut buffer: String) -> String {
         buffer.push(current);
-        if self
-            .chars
-            .peek()
-            .map_or(false, |ch| ch.is_ascii_alphabetic())
-        {
-            let nch = self.chars.next().expect("If None condition is false.");
-            self.collect_command(nch, buffer)
-        } else {
-            buffer
+        match self.chars.next_if(|ch| ch.is_ascii_alphabetic()) {
+            Some(ch) => self.collect_command(ch, buffer),
+            None => buffer,
         }
     }
 
@@ -99,24 +89,20 @@ impl<'a> Lexer<'a> {
     /// Panics if provided `current` is not a valid ascii digit.
     fn collect_arg(&mut self, current: char, mut buffer: String) -> usize {
         buffer.push(current);
-        if self.chars.peek().map_or(false, |ch| ch.is_ascii_digit()) {
-            let nch = self.chars.next().expect("If None condition is false.");
-            self.collect_arg(nch, buffer)
-        } else {
-            buffer
+        match self.chars.next_if(|ch| ch.is_ascii_digit()) {
+            Some(ch) => self.collect_arg(ch, buffer),
+            None => buffer
                 .parse()
-                .expect("`buffer` should only contain ascii digits.")
+                .expect("`buffer` should only contain ASCII digits."),
         }
     }
 
     /// Collects whitespace string, starting from the provided char (assumed to be whitespace) and continuing by iterating over `self.chars`
     fn collect_whitespace(&mut self, current: char, mut buffer: String) -> String {
         buffer.push(current);
-        if self.chars.peek().map_or(false, |ch| ch.is_whitespace()) {
-            let nch = self.chars.next().expect("If None condition is false.");
-            self.collect_whitespace(nch, buffer)
-        } else {
-            buffer
+        match self.chars.next_if(|ch| ch.is_whitespace()) {
+            Some(ch) => self.collect_whitespace(ch, buffer),
+            None => buffer,
         }
     }
 }
