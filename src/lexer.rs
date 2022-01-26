@@ -1,5 +1,50 @@
 use std::{iter::Peekable, str::Chars};
 
+use crate::Pos;
+
+pub struct PosChars<I>
+where
+    I: Iterator<Item = char>,
+{
+    chars: I,
+    x: usize,
+    y: usize,
+}
+
+impl<I> Iterator for PosChars<I>
+where
+    I: Iterator<Item = char>,
+{
+    type Item = Pos<char>;
+
+    fn next(&mut self) -> Option<Pos<char>> {
+        self.chars.next().map(|ch| {
+            let result = Pos::new(ch, self.x, self.y);
+            if ch == '\n' {
+                self.x = 1;
+                self.y += 1;
+            } else {
+                self.x += 1;
+            }
+            result
+        })
+    }
+}
+
+pub trait CreatePosChars: Iterator<Item = char> + Sized {
+    fn with_pos(self) -> PosChars<Self>;
+}
+
+impl<I: Iterator<Item = char> + Sized> CreatePosChars for I {
+    fn with_pos(self) -> PosChars<Self> {
+        PosChars {
+            chars: self,
+            x: 1,
+            y: 1,
+        }
+    }
+}
+
 #[derive(Debug, PartialEq, Eq)]
 pub enum Brace {
     Left,
@@ -20,41 +65,55 @@ pub enum Token {
 }
 
 /// Lexer (tokeniser) for latex maths mode code. TeX calls this the mouth.
-pub struct Lexer<'a> {
-    chars: Peekable<Chars<'a>>,
+pub struct Lexer<I>
+where
+    I: Iterator<Item = char>,
+{
+    chars: Peekable<PosChars<I>>,
 }
 
-impl<'a> Lexer<'a> {
-    pub fn new<'b>(code: &'b str) -> Lexer<'b> {
+impl<'a> Lexer<Chars<'a>> {
+    pub fn new(code: &'a str) -> Lexer<Chars<'a>> {
         Lexer {
-            chars: code.chars().peekable(),
+            chars: code.chars().with_pos().peekable(),
         }
     }
+}
 
+impl<I> Lexer<I>
+where
+    I: Iterator<Item = char>,
+{
     /// Get the next token
-    fn next_token(&mut self) -> Option<Token> {
+    fn next_token(&mut self) -> Option<Pos<Token>> {
         use self::Brace::*;
         use self::Token::*;
-        self.chars.next().map(|ch| match ch {
-            '{' => Brace(Left),
-            '}' => Brace(Right),
-            '&' => Ampersand,
-            '\0' => Eof,
-            '\\' => Command(
-                self.chars
-                    .next()
-                    .map_or("".into(), |nch| self.collect_command(nch, String::new())),
-            ),
-            '%' => Comment(self.build_comment(String::new())),
-            '#' => self.chars.next().map_or(Illegal, |nch| {
-                if nch.is_ascii_digit() {
-                    Arg(self.collect_arg(nch, String::new()))
-                } else {
-                    Illegal
+        self.chars.next().map(|ch| Pos {
+            val: match ch.val {
+                '{' => Brace(Left),
+                '}' => Brace(Right),
+                '&' => Ampersand,
+                '\0' => Eof,
+                '\\' => Command(
+                    self.chars
+                        .next()
+                        .map_or("".into(), |ch| self.collect_command(ch.val, String::new())),
+                ),
+                '%' => Comment(self.build_comment(String::new())),
+                '#' => self.chars.next().map_or(Illegal, |ch| {
+                    if ch.val.is_ascii_digit() {
+                        Arg(self.collect_arg(ch.val, String::new()))
+                    } else {
+                        Illegal
+                    }
+                }),
+                _ if ch.val.is_whitespace() => {
+                    Whitespace(self.collect_whitespace(ch.val, String::new()))
                 }
-            }),
-            _ if ch.is_whitespace() => Whitespace(self.collect_whitespace(ch, String::new())),
-            _ => Char(ch),
+                _ => Char(ch.val),
+            },
+            x: ch.x,
+            y: ch.y,
         })
     }
 
@@ -62,9 +121,9 @@ impl<'a> Lexer<'a> {
 
     /// Builds a comment string, starting from the current char.
     fn build_comment(&mut self, mut buffer: String) -> String {
-        match self.chars.next_if(|ch| *ch != '\n' && *ch != '\0') {
+        match self.chars.next_if(|ch| ch.val != '\n' && ch.val != '\0') {
             Some(ch) => {
-                buffer.push(ch);
+                buffer.push(ch.val);
                 self.build_comment(buffer)
             }
             None => buffer,
@@ -76,8 +135,8 @@ impl<'a> Lexer<'a> {
     /// Collects a command string, starting from the provided char and continuing by iterating over `self.chars`.
     fn collect_command(&mut self, current: char, mut buffer: String) -> String {
         buffer.push(current);
-        match self.chars.next_if(|ch| ch.is_ascii_alphabetic()) {
-            Some(ch) => self.collect_command(ch, buffer),
+        match self.chars.next_if(|ch| ch.val.is_ascii_alphabetic()) {
+            Some(ch) => self.collect_command(ch.val, buffer),
             None => buffer,
         }
     }
@@ -89,8 +148,8 @@ impl<'a> Lexer<'a> {
     /// Panics if provided `current` is not a valid ascii digit.
     fn collect_arg(&mut self, current: char, mut buffer: String) -> usize {
         buffer.push(current);
-        match self.chars.next_if(|ch| ch.is_ascii_digit()) {
-            Some(ch) => self.collect_arg(ch, buffer),
+        match self.chars.next_if(|ch| ch.val.is_ascii_digit()) {
+            Some(ch) => self.collect_arg(ch.val, buffer),
             None => buffer
                 .parse()
                 .expect("`buffer` should only contain ASCII digits."),
@@ -100,17 +159,20 @@ impl<'a> Lexer<'a> {
     /// Collects whitespace string, starting from the provided char (assumed to be whitespace) and continuing by iterating over `self.chars`
     fn collect_whitespace(&mut self, current: char, mut buffer: String) -> String {
         buffer.push(current);
-        match self.chars.next_if(|ch| ch.is_whitespace()) {
-            Some(ch) => self.collect_whitespace(ch, buffer),
+        match self.chars.next_if(|ch| ch.val.is_whitespace()) {
+            Some(ch) => self.collect_whitespace(ch.val, buffer),
             None => buffer,
         }
     }
 }
 
-impl<'a> Iterator for Lexer<'a> {
-    type Item = Token;
+impl<I> Iterator for Lexer<I>
+where
+    I: Iterator<Item = char>,
+{
+    type Item = Pos<Token>;
 
-    fn next(&mut self) -> Option<Token> {
+    fn next(&mut self) -> Option<Pos<Token>> {
         self.next_token()
     }
 
@@ -170,7 +232,7 @@ mod tests {
 
         let lexer = Lexer::new(EXAMPLE_LATEX);
 
-        for (a, b) in lexer.zip(example_latex_tokenized) {
+        for (a, b) in lexer.map(|ch| ch.val).zip(example_latex_tokenized) {
             assert_eq!(a, b);
         }
     }
