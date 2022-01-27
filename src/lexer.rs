@@ -88,32 +88,26 @@ where
     fn next_token(&mut self) -> Option<Pos<Token>> {
         use self::Brace::*;
         use self::Token::*;
-        self.chars.next().map(|ch| Pos {
-            val: match ch.val {
+        self.chars.next().map(|pch| {
+            pch.map(|ch| match ch {
                 '{' => Brace(Left),
                 '}' => Brace(Right),
                 '&' => Ampersand,
                 '\0' => Eof,
-                '\\' => Command(
-                    self.chars
-                        .next()
-                        .map_or("".into(), |ch| self.collect_command(ch.val, String::new())),
-                ),
+                '\\' => Command(self.chars.next().map_or("".into(), |pch| {
+                    self.collect_command(pch.val, String::new())
+                })),
                 '%' => Comment(self.build_comment(String::new())),
-                '#' => self.chars.next().map_or(Illegal, |ch| {
-                    if ch.val.is_ascii_digit() {
-                        Arg(self.collect_arg(ch.val, String::new()))
+                '#' => self.chars.next().map_or(Illegal, |pch| {
+                    if pch.val.is_ascii_digit() {
+                        Arg(self.collect_arg(pch.val, String::new()))
                     } else {
                         Illegal
                     }
                 }),
-                _ if ch.val.is_whitespace() => {
-                    Whitespace(self.collect_whitespace(ch.val, String::new()))
-                }
-                _ => Char(ch.val),
-            },
-            x: ch.x,
-            y: ch.y,
+                _ if ch.is_whitespace() => Whitespace(self.collect_whitespace(ch, String::new())),
+                _ => Char(ch),
+            })
         })
     }
 

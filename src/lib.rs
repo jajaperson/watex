@@ -8,8 +8,12 @@ pub struct Pos<T> {
 }
 
 impl<T> Pos<T> {
-    fn new(val: T, x: usize, y: usize) -> Pos<T> {
+    pub fn new(val: T, x: usize, y: usize) -> Pos<T> {
         Pos { val, x, y }
+    }
+
+    pub fn map<U, F: FnOnce(T) -> U>(self, f: F) -> Pos<U> {
+        Pos::new(f(self.val), self.x, self.y)
     }
 }
 
