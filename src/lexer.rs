@@ -1,4 +1,7 @@
-use std::{iter::Peekable, str::Chars};
+use std::{
+    iter::{FusedIterator, Peekable},
+    str::Chars,
+};
 
 use crate::Pos;
 
@@ -31,11 +34,9 @@ where
     }
 }
 
-pub trait CreatePosChars: Iterator<Item = char> + Sized {
-    fn with_pos(self) -> PosChars<Self>;
-}
+impl<I> FusedIterator for PosChars<I> where I: Iterator<Item = char> + FusedIterator {}
 
-impl<I: Iterator<Item = char> + Sized> CreatePosChars for I {
+pub trait WithPosChars: Iterator<Item = char> + Sized {
     fn with_pos(self) -> PosChars<Self> {
         PosChars {
             chars: self,
@@ -44,6 +45,8 @@ impl<I: Iterator<Item = char> + Sized> CreatePosChars for I {
         }
     }
 }
+
+impl<I: Iterator<Item = char> + Sized> WithPosChars for I {}
 
 #[derive(Debug, PartialEq, Eq)]
 pub enum Brace {
@@ -179,6 +182,8 @@ where
         }
     }
 }
+
+impl<I> FusedIterator for Lexer<I> where I: Iterator<Item = char> + FusedIterator {}
 
 #[cfg(test)]
 mod tests {
