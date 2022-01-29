@@ -1,5 +1,6 @@
 pub mod lexer;
 pub mod macro_expander;
+pub mod macros;
 
 pub struct Pos<T> {
     pub val: T,
