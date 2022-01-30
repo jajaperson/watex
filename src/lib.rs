@@ -2,26 +2,9 @@ pub mod lexer;
 pub mod macro_expander;
 pub mod macros;
 
-pub struct Pos<T> {
-    pub val: T,
-    pub x: usize,
-    pub y: usize,
-}
+mod structures;
 
-impl<T> Pos<T> {
-    pub fn new(val: T, x: usize, y: usize) -> Pos<T> {
-        Pos { val, x, y }
-    }
-
-    pub fn map<U, F: FnOnce(T) -> U>(self, f: F) -> Pos<U> {
-        Pos::new(f(self.val), self.x, self.y)
-    }
-}
-
-pub enum Mode {
-    Text,
-    Math,
-}
+pub use structures::*;
 
 #[cfg(test)]
 mod tests {

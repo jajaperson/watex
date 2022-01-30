@@ -3,15 +3,15 @@ use std::{
     str::Chars,
 };
 
-use crate::Pos;
+use crate::{Pos, Span};
 
 pub struct PosChars<I>
 where
     I: Iterator<Item = char>,
 {
     chars: I,
-    x: usize,
-    y: usize,
+    lin: usize,
+    col: usize,
 }
 
 impl<I> Iterator for PosChars<I>
@@ -22,12 +22,12 @@ where
 
     fn next(&mut self) -> Option<Pos<char>> {
         self.chars.next().map(|ch| {
-            let result = Pos::new(ch, self.x, self.y);
+            let result = Pos::new(ch, Span::new(self.lin, self.col));
             if ch == '\n' {
-                self.x = 1;
-                self.y += 1;
+                self.lin = 1;
+                self.col += 1;
             } else {
-                self.x += 1;
+                self.lin += 1;
             }
             result
         })
@@ -40,8 +40,8 @@ pub trait WithPosChars: Iterator<Item = char> + Sized {
     fn with_pos(self) -> PosChars<Self> {
         PosChars {
             chars: self,
-            x: 1,
-            y: 1,
+            lin: 1,
+            col: 1,
         }
     }
 }
