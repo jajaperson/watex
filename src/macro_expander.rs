@@ -1,6 +1,6 @@
 use std::iter::FusedIterator;
 
-use crate::{lexer::Token, Pos};
+use crate::{Pos, Token};
 
 // TODO: Implement MacroExpander
 

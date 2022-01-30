@@ -3,6 +3,7 @@ pub mod macro_expander;
 pub mod macros;
 
 mod structures;
+mod util;
 
 pub use structures::*;
 

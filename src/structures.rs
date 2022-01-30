@@ -1,5 +1,24 @@
 use std::{fmt, iter};
 
+#[derive(Debug, PartialEq, Eq)]
+pub enum Brace {
+    Left,
+    Right,
+}
+
+#[derive(Debug, PartialEq, Eq)]
+pub enum Token {
+    Command(String),
+    Brace(Brace),
+    Arg(usize),
+    Ampersand,
+    Whitespace(String),
+    Comment(String),
+    Char(char),
+    Eof,
+    Illegal,
+}
+
 pub struct Span {
     lin: usize,
     col: usize,
