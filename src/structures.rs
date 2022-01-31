@@ -1,24 +1,42 @@
 use std::{fmt, iter};
 
+/// Either left or right. Used to distinguish braces.
 #[derive(Debug, PartialEq, Eq)]
-pub enum Brace {
+pub enum Side {
     Left,
     Right,
 }
 
+/// A single TeX token.
 #[derive(Debug, PartialEq, Eq)]
 pub enum Token {
-    Command(String),
-    Brace(Brace),
+    /// A TeX control sequence/macro, e.g. `\mathbb`, `\newcommand`, or `\%`.
+    Control(String),
+    /// A TeX brace, i.e. either `{` or `}`.
+    Brace(Side),
+    /// A TeX argument in a command definition, written as `#1`.
     Arg(usize),
+    /// TeX's special alignment character `&`.
     Ampersand,
+    /// A collection of consecutive Unicode whitespace characters.
     Whitespace(String),
+    /// A TeX comment marked with `%`.
     Comment(String),
+    /// A single, non-special character
     Char(char),
+    /// The EOF character (`\0`).
     Eof,
-    Illegal,
+    /// Represents an error encountered in the lexical token stream.
+    Err(Error),
 }
 
+#[derive(Debug, PartialEq, Eq)]
+pub enum Error {
+    /// Emitted when an illegal character is encountered.
+    IllegalChar(char),
+}
+
+/// Represents a position within a source file.
 pub struct Span {
     lin: usize,
     col: usize,
@@ -29,6 +47,7 @@ impl Span {
         Span { lin, col }
     }
 
+    /// Highlights the encoded position within a given body of text with `^`, followed by a message.
     pub fn highlight_msg_in_code(&self, code: &str, msg: &str) -> String {
         let mut result = String::new();
         let mut i = 1;
@@ -51,6 +70,7 @@ impl fmt::Display for Span {
     }
 }
 
+/// Some value enriched with a span.
 pub struct Pos<T> {
     pub val: T,
     pub span: Span,
@@ -61,6 +81,8 @@ impl<T> Pos<T> {
         Pos { val, span }
     }
 
+    /// Map over the contained value (i.e. without the span). Whatever is returned by `f` will
+    /// inherit the original span.
     pub fn map<U, F: FnOnce(T) -> U>(self, f: F) -> Pos<U> {
         Pos::new(f(self.val), self.span)
     }

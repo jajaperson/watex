@@ -30,6 +30,7 @@ impl<I: Iterator<Item = Pos<Token>>> Iterator for ExpandMacros<I> {
 impl<I> FusedIterator for ExpandMacros<I> where I: Iterator<Item = Pos<Token>> + FusedIterator {}
 
 trait WithExpandMacros: Iterator<Item = Pos<Token>> + Sized {
+    /// Expand each token in an iterator.
     fn expand_macros(self) -> ExpandMacros<Self> {
         ExpandMacros::new(self)
     }

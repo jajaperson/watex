@@ -5,10 +5,11 @@ use std::{
 
 use crate::{
     util::{PosChars, WithPosChars},
-    Brace, Pos, Token,
+    Error, Pos, Side, Token,
 };
 
-/// Lexer (tokeniser) for latex maths mode code. TeX calls this the mouth.
+/// Lexer (tokeniser) for latex maths mode code. TeX calls this the mouth. The public interface is
+/// an iterator over the lexed tokens.
 pub struct Lexer<I>
 where
     I: Iterator<Item = char>,
@@ -17,6 +18,7 @@ where
 }
 
 impl<'a> Lexer<Chars<'a>> {
+    /// Create a lexer for a given `&str`.
     pub fn new(code: &'a str) -> Lexer<Chars<'a>> {
         Lexer {
             chars: code.chars().with_pos().peekable(),
@@ -30,25 +32,28 @@ where
 {
     /// Get the next token
     fn next_token(&mut self) -> Option<Pos<Token>> {
-        use self::Brace::*;
-        use self::Token::*;
+        use Side::*;
+        use Token::*;
         self.chars.next().map(|pch| {
             pch.map(|ch| match ch {
                 '{' => Brace(Left),
                 '}' => Brace(Right),
                 '&' => Ampersand,
                 '\0' => Eof,
-                '\\' => Command(self.chars.next().map_or("".into(), |pch| {
+                '\\' => Control(self.chars.next().map_or("".into(), |pch| {
                     self.collect_command(pch.val, String::new())
                 })),
                 '%' => Comment(self.build_comment(String::new())),
-                '#' => self.chars.next().map_or(Illegal, |pch| {
-                    if pch.val.is_ascii_digit() {
-                        Arg(self.collect_arg(pch.val, String::new()))
-                    } else {
-                        Illegal
-                    }
-                }),
+                '#' => self
+                    .chars
+                    .next()
+                    .map_or(Err(Error::IllegalChar('#')), |pch| {
+                        if pch.val.is_ascii_digit() {
+                            Arg(self.collect_arg(pch.val, String::new()))
+                        } else {
+                            Err(Error::IllegalChar('#'))
+                        }
+                    }),
                 _ if ch.is_whitespace() => Whitespace(self.collect_whitespace(ch, String::new())),
                 _ => Char(ch),
             })
@@ -128,7 +133,7 @@ impl<I> FusedIterator for Lexer<I> where I: Iterator<Item = char> + FusedIterato
 
 #[cfg(test)]
 mod tests {
-    use crate::lexer::{Brace::*, Lexer, Token::*};
+    use crate::{Error, Lexer, Side::*, Token::*};
 
     const EXAMPLE_LATEX: &str = r#"
 \newcommand{\u}[1]{2^#1}
@@ -139,9 +144,9 @@ mod tests {
     fn parse_example() {
         let example_latex_tokenized = [
             Whitespace("\n".into()),
-            Command("newcommand".into()),
+            Control("newcommand".into()),
             Brace(Left),
-            Command("u".into()),
+            Control("u".into()),
             Brace(Right),
             Char('['),
             Char('1'),
@@ -157,17 +162,17 @@ mod tests {
             Char('x'),
             Whitespace(" ".into()),
             Ampersand,
-            Command("geq".into()),
-            Command("u".into()),
+            Control("geq".into()),
+            Control("u".into()),
             Brace(Left),
             Char('9'),
             Char('3'),
-            Command("%".into()),
+            Control("%".into()),
             Brace(Right),
             Whitespace(" ".into()),
             Comment(" I'm a comment.".into()),
             Whitespace("\n".into()),
-            Illegal,
+            Err(Error::IllegalChar('#')),
         ];
 
         let lexer = Lexer::new(EXAMPLE_LATEX);

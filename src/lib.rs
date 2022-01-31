@@ -1,10 +1,11 @@
-pub mod lexer;
+mod lexer;
 pub mod macro_expander;
 pub mod macros;
 
 mod structures;
 mod util;
 
+pub use lexer::Lexer;
 pub use structures::*;
 
 #[cfg(test)]
