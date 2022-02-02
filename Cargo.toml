@@ -5,6 +5,9 @@ edition = "2021"
 description = "A maths-mode TeX parser built with WebAssembly in mind."
 license = "MIT"
 
+[dependencies]
+thiserror = "1.0"
+
 [dependencies.tex_macro_attr]
 path = "./tex_macro_attr"
 version = "0.1.0"

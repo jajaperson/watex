@@ -1,4 +1,5 @@
 use std::{fmt, iter};
+use thiserror::Error;
 
 /// Either left or right. Used to distinguish braces.
 #[derive(Debug, PartialEq, Eq)]
@@ -27,12 +28,13 @@ pub enum Token {
     /// The EOF character (`\0`).
     Eof,
     /// Represents an error encountered in the lexical token stream.
-    Err(Error),
+    Err(ParseError),
 }
 
-#[derive(Debug, PartialEq, Eq)]
-pub enum Error {
+#[derive(Error, Debug, Eq, PartialEq)]
+pub enum ParseError {
     /// Emitted when an illegal character is encountered.
+    #[error("illegal character `{0}` encountered")]
     IllegalChar(char),
 }
 
